@@ -5,10 +5,27 @@
 // rules live alongside the extension's other styles.
 
 .ReferralSignup-codeInput {
-  text-transform: uppercase;
   letter-spacing: 3px;
   font-family: monospace;
+
+  // While the field is empty its placeholder is the only label anyone gets who
+  // has hidden the real ones with custom CSS, so it should read like every
+  // other placeholder in the sign-up form rather than like a code. The moment
+  // there is something to show, the monospace and spacing come back for the
+  // code itself, which is what they are for.
+  //
+  // Asked for on discuss.flarum.org d/39203 #52.
+  &:placeholder-shown {
+    letter-spacing: normal;
+    font-family: inherit;
+  }
 }
+
+// `text-transform: uppercase` used to sit on the input above. It never reached
+// a real code, because every path that sets the value already uppercases it in
+// JS (the oninput handler and the ?ref= prefill both do
+// `.toUpperCase().replace(/[^A-Z0-9]/g, '')`). All it did was shout the
+// placeholder as "E.G. K7XM2QNP", so it is gone rather than reset below.
 
 .ReferralProfile {
   padding: 0 16px;
