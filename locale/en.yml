@@ -13,7 +13,10 @@ linkrobins-referral:
     sign_up:
       invite_code_label: Invite Code
       invite_code_label_required: "Invite Code *"
-      invite_code_placeholder: e.g. K7XM2QNP
+      # Names the field rather than showing an example code, because anyone who
+      # hides the labels with custom CSS has only this to go on. Translate it
+      # like any other string to change it. Asked for on discuss d/39203 #50.
+      invite_code_placeholder: Invite Code
     user_card:
       referrals_singular: "{count} referral"
       referrals_plural: "{count} referrals"
