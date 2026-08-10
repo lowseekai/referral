@@ -2,6 +2,8 @@
     "name": "linkrobins/referral",
     "description": "Invite code referral system for Flarum 2.0.",
     "type": "flarum-extension",
+    "keywords": ["flarum", "referral", "invite", "invitation", "signups"],
+    "homepage": "https://linkrobins.com/extensions/referral",
     "license": "MIT",
     "authors": [
         {
