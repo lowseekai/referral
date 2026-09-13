@@ -42,13 +42,17 @@ class ValidateInviteCode
         }
 
         if ($code) {
-            $invite = InviteCode::where('code', strtoupper($code))->first();
-            if (!$invite || $invite->isExpired()) {
+            $token = bin2hex(random_bytes(24));
+            $invite = InviteCode::reserveForRegistration($code, $token);
+
+            if (! $invite) {
                 throw new ValidationException([
                     'inviteCode' => $this->translator->trans('linkrobins-referral.validation.invalid'),
                 ]);
             }
+
             $state->setInviteId($invite->id);
+            $state->setReservationToken($token);
         }
     }
 }

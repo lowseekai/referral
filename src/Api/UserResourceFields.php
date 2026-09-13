@@ -43,16 +43,21 @@ class UserResourceFields
                 ->visible(fn (User $user, $context) => $context->getActor()->id === $user->id)
                 ->get(fn (User $user) => $this->eligibility->isEligible($user)),
 
-            // The invite code is private to its owner, so it is only resolved
-            // for the user themselves. This is a pure read: it returns the
-            // existing code, or null if the user is ineligible or hasn't
-            // generated one yet. Generation is an explicit POST
-            // /api/referral/my-code (GenerateMyCodeController) so a GET never
-            // writes -- the frontend calls it once when the referrals tab opens.
+            // Backward-compatible single-code attribute. The new forum UI uses
+            // /api/referral/my-codes, but older clients should never receive a
+            // used or expired code from this field.
             Attribute::make('referralCode')
                 ->visible(fn (User $user, $context) => $context->getActor()->id === $user->id)
                 ->get(fn (User $user) => $this->eligibility->isEligible($user)
-                    ? InviteCode::where('user_id', $user->id)->value('code')
+                    ? InviteCode::where('user_id', $user->id)
+                        ->where('uses', 0)
+                        ->whereNull('used_at')
+                        ->where(function ($query) {
+                            $query->whereNull('expires_at')
+                                ->orWhere('expires_at', '>', \LinkRobins\Referral\ReferralTime::now()->utc());
+                        })
+                        ->orderByDesc('id')
+                        ->value('code')
                     : null),
 
             // The referral graph (who referred whom) is private to the user

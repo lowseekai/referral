@@ -3,24 +3,22 @@
 namespace LinkRobins\Referral\Api\Controller;
 
 use Flarum\Http\RequestUtil;
-use Flarum\User\Exception\PermissionDeniedException;
 use Laminas\Diactoros\Response\JsonResponse;
-use LinkRobins\Referral\EligibilityChecker;
-use LinkRobins\Referral\InviteCode;
+use LinkRobins\Referral\CodeQuotaService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Generates (or returns) the acting user's personal invite code. This is the
- * write half of the referral-code flow, split out of serialization so a GET on
- * /api/users never inserts a row. The frontend calls this once when an eligible
- * user opens their referrals tab; the referralCode attribute stays read-only.
+ * Generates one group-entitlement invite code for the actor.
+ *
+ * Kept on the old /referral/my-code route for backward compatibility, but it
+ * now follows the multi-code quota rules instead of returning one fixed code.
  */
 class GenerateMyCodeController implements RequestHandlerInterface
 {
     public function __construct(
-        protected EligibilityChecker $eligibility
+        protected CodeQuotaService $quota
     ) {}
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -28,12 +26,8 @@ class GenerateMyCodeController implements RequestHandlerInterface
         $actor = RequestUtil::getActor($request);
         $actor->assertRegistered();
 
-        if (! $this->eligibility->isEligible($actor)) {
-            throw new PermissionDeniedException();
-        }
+        $code = $this->quota->createGroupCode($actor);
 
-        $code = InviteCode::getOrCreateForUser($actor);
-
-        return new JsonResponse(['data' => ['code' => $code->code]]);
+        return new JsonResponse(['data' => $code->toOwnerArray()], 201);
     }
 }

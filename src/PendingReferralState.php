@@ -22,6 +22,7 @@ class PendingReferralState
 {
     private ?string $code = null;
     private ?int $inviteId = null;
+    private ?string $reservationToken = null;
 
     public function setCode(?string $code): void
     {
@@ -42,5 +43,15 @@ class PendingReferralState
     public function getInviteId(): ?int
     {
         return $this->inviteId;
+    }
+
+    public function setReservationToken(?string $token): void
+    {
+        $this->reservationToken = $token !== null && $token !== '' ? $token : null;
+    }
+
+    public function getReservationToken(): ?string
+    {
+        return $this->reservationToken;
     }
 }

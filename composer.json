@@ -23,7 +23,8 @@
     ],
     "require": {
         "php": "^8.3",
-        "flarum/core": "^2.0"
+        "flarum/core": "^2.0",
+        "ramon/point-system": "dev-main"
     },
     "autoload": {
         "psr-4": {

@@ -9,9 +9,9 @@
 
 namespace LinkRobins\Referral\Tests\integration\api;
 
-use Carbon\Carbon;
 use Flarum\Testing\integration\RetrievesAuthorizedUsers;
 use Flarum\Testing\integration\TestCase;
+use LinkRobins\Referral\ReferralTime;
 use PHPUnit\Framework\Attributes\Test;
 use Psr\Http\Message\ResponseInterface;
 
@@ -36,15 +36,15 @@ class RegistrationReferralTest extends TestCase
      * Register through the real signup flow: CSRF token first, then the POST,
      * with the referral cookie attached the same way the browser would send it.
      */
-    private function register(?string $cookieCode = null): ResponseInterface
+    private function register(?string $cookieCode = null, string $username = 'newmember'): ResponseInterface
     {
         $request = $this->requestWithCsrfToken(
             $this->request('POST', '/api/users', [
                 'json' => [
                     'data' => [
                         'attributes' => [
-                            'username' => 'newmember',
-                            'email' => 'newmember@machine.local',
+                            'username' => $username,
+                            'email' => $username.'@machine.local',
                             'password' => 'a-strong-password',
                         ],
                     ],
@@ -82,6 +82,8 @@ class RegistrationReferralTest extends TestCase
         // The denormalised counters must stay in sync.
         $this->assertEquals(1, $this->database()->table('users')->where('id', 2)->value('referral_count'));
         $this->assertEquals(1, $this->database()->table('referral_invite_codes')->where('id', 1)->value('uses'));
+        $this->assertNotNull($this->database()->table('referral_invite_codes')->where('id', 1)->value('used_at'));
+        $this->assertEquals($newUser->id, $this->database()->table('referral_invite_codes')->where('id', 1)->value('used_by_user_id'));
     }
 
     #[Test]
@@ -189,7 +191,7 @@ class RegistrationReferralTest extends TestCase
     {
         $this->prepareDatabase([
             'referral_invite_codes' => [
-                ['id' => 1, 'user_id' => 2, 'code' => 'TESTCODE', 'uses' => 0, 'expires_at' => Carbon::now()->subDay()],
+                ['id' => 1, 'user_id' => 2, 'code' => 'TESTCODE', 'uses' => 0, 'expires_at' => ReferralTime::now()->subDay()->utc()],
             ],
         ]);
 
@@ -197,6 +199,102 @@ class RegistrationReferralTest extends TestCase
 
         $this->assertEquals(422, $response->getStatusCode());
         $this->assertEquals(0, $this->database()->table('users')->where('username', 'newmember')->count());
+    }
+
+    #[Test]
+    public function an_already_used_code_blocks_registration(): void
+    {
+        $this->prepareDatabase([
+            'referral_invite_codes' => [
+                ['id' => 1, 'user_id' => 2, 'code' => 'TESTCODE', 'uses' => 1, 'used_at' => ReferralTime::now()->subHour()->utc()],
+            ],
+        ]);
+
+        $response = $this->register('TESTCODE');
+
+        $this->assertEquals(422, $response->getStatusCode());
+        $this->assertEquals(0, $this->database()->table('users')->where('username', 'newmember')->count());
+    }
+
+    #[Test]
+    public function a_successfully_redeemed_code_cannot_be_used_again(): void
+    {
+        $this->prepareDatabase([
+            'referral_invite_codes' => [
+                ['id' => 1, 'user_id' => 2, 'code' => 'ONCEONLY', 'uses' => 0],
+            ],
+        ]);
+
+        $first = $this->register('ONCEONLY', 'firstmember');
+        $second = $this->register('ONCEONLY', 'secondmember');
+
+        $this->assertEquals(201, $first->getStatusCode());
+        $this->assertEquals(422, $second->getStatusCode());
+        $this->assertEquals(1, $this->database()->table('referral_invite_codes')->where('id', 1)->value('uses'));
+        $this->assertEquals(1, $this->database()->table('users')->whereIn('username', ['firstmember', 'secondmember'])->count());
+    }
+
+    #[Test]
+    public function an_active_registration_reservation_blocks_a_second_reservation(): void
+    {
+        $this->prepareDatabase([
+            'referral_invite_codes' => [
+                [
+                    'id' => 1,
+                    'user_id' => 2,
+                    'code' => 'RESERVED1',
+                    'uses' => 0,
+                    'reserved_at' => ReferralTime::now()->utc(),
+                    'reservation_token' => 'another-request',
+                ],
+            ],
+        ]);
+
+        $response = $this->register('RESERVED1');
+
+        $this->assertEquals(422, $response->getStatusCode());
+        $this->assertEquals(0, $this->database()->table('users')->where('username', 'newmember')->count());
+    }
+
+    #[Test]
+    public function an_expired_registration_reservation_can_be_reclaimed(): void
+    {
+        $this->prepareDatabase([
+            'referral_invite_codes' => [
+                [
+                    'id' => 1,
+                    'user_id' => 2,
+                    'code' => 'RECLAIM1',
+                    'uses' => 0,
+                    'reserved_at' => ReferralTime::now()->subMinutes(16)->utc(),
+                    'reservation_token' => 'stale-request',
+                ],
+            ],
+        ]);
+
+        $response = $this->register('RECLAIM1');
+
+        $this->assertEquals(201, $response->getStatusCode());
+        $this->assertEquals(1, $this->database()->table('referral_invite_codes')->where('id', 1)->value('uses'));
+    }
+
+    #[Test]
+    public function a_failed_registration_releases_its_invite_code_reservation(): void
+    {
+        $this->prepareDatabase([
+            'referral_invite_codes' => [
+                ['id' => 1, 'user_id' => 2, 'code' => 'RELEASE1', 'uses' => 0],
+            ],
+        ]);
+
+        $response = $this->register('RELEASE1', 'normal');
+
+        $this->assertEquals(422, $response->getStatusCode());
+        $invite = $this->database()->table('referral_invite_codes')->where('id', 1)->first();
+        $this->assertEquals(0, (int) $invite->uses);
+        $this->assertNull($invite->used_at);
+        $this->assertNull($invite->reserved_at);
+        $this->assertNull($invite->reservation_token);
     }
 
     #[Test]
@@ -232,6 +330,7 @@ class RegistrationReferralTest extends TestCase
 
         $this->assertEquals(201, $response->getStatusCode());
         $this->assertEquals(1, $this->database()->table('referral_invite_codes')->where('id', 1)->value('uses'));
+        $this->assertNotNull($this->database()->table('referral_invite_codes')->where('id', 1)->value('used_at'));
         $this->assertEquals(0, $this->database()->table('referral_invited_user')->count());
     }
 }

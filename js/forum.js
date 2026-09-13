@@ -10,6 +10,7 @@ var qrModal = require('./qrModal');
     var UserPage = flarum.reg.get('core', 'forum/components/UserPage');
     var LinkButton = flarum.reg.get('core', 'common/components/LinkButton');
     var Link = flarum.reg.get('core', 'common/components/Link');
+    var Button = flarum.reg.get('core', 'common/components/Button');
     var LoadingIndicator = flarum.reg.get('core', 'common/components/LoadingIndicator');
     var UserPageResolver = flarum.reg.get('core', 'forum/resolvers/UserPageResolver');
 
@@ -117,112 +118,239 @@ var qrModal = require('./qrModal');
     class ReferralsPage extends UserPage {
       oninit(vnode) {
         super.oninit(vnode);
+        this.codes = null;
+        this.codesLoading = false;
+        this.action = null;
+        this.meta = null;
         this.loadUser(m.route.param('username'));
+      }
+
+      loadCodes() {
+        if (this.codesLoading || this.codes !== null) return;
+
+        this.codesLoading = true;
+        var apiUrl = (app.forum && app.forum.attribute('apiUrl')) || '/api';
+        app
+          .request({ method: 'GET', url: apiUrl + '/referral/my-codes' })
+          .then((res) => {
+            this.codes = (res && res.data) || [];
+            this.meta = (res && res.meta) || {};
+            this.codesLoading = false;
+            m.redraw();
+          })
+          .catch(() => {
+            this.codes = [];
+            this.meta = {};
+            this.codesLoading = false;
+            m.redraw();
+          });
+      }
+
+      runAction(action, url) {
+        if (this.action) return;
+
+        this.action = action;
+        var apiUrl = (app.forum && app.forum.attribute('apiUrl')) || '/api';
+        app
+          .request({ method: 'POST', url: apiUrl + url })
+          .then(() => {
+            this.codes = null;
+            this.meta = null;
+            this.action = null;
+            m.redraw();
+          })
+          .catch(() => {
+            this.action = null;
+            m.redraw();
+          });
+      }
+
+      renderCode(code) {
+        var channel = code.channel || 'legacy';
+        var unavailable = code.used || code.expired;
+        var channelLabel = app.translator.trans('linkrobins-referral.forum.profile.channel_' + channel);
+
+        return m(
+          'div',
+          { className: 'ReferralProfile-codeItem' },
+          m(
+            'div',
+            { className: 'ReferralProfile-codeMeta' },
+            m('span', { className: 'ReferralProfile-code' }, code.code),
+            m('span', { className: 'ReferralProfile-badge' }, channelLabel),
+            code.used &&
+              m(
+                'span',
+                { className: 'ReferralProfile-status ReferralProfile-status--used' },
+                app.translator.trans('linkrobins-referral.forum.profile.used')
+              ),
+            code.expired &&
+              m(
+                'span',
+                { className: 'ReferralProfile-status ReferralProfile-status--expired' },
+                app.translator.trans('linkrobins-referral.forum.profile.expired')
+              )
+          ),
+          m(
+            'div',
+            { className: 'ReferralProfile-codeDetails' },
+            m('span', null, app.translator.trans('linkrobins-referral.forum.profile.uses', { count: code.uses || 0 })),
+            code.expiresAt
+              ? m(
+                  'span',
+                  null,
+                  app.translator.trans('linkrobins-referral.forum.profile.expires_at', {
+                    date: new Date(code.expiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+                  })
+                )
+              : m('span', null, app.translator.trans('linkrobins-referral.forum.profile.no_expiry'))
+          ),
+          !unavailable &&
+            m(
+              'div',
+              { className: 'ReferralProfile-codeActions' },
+              m(
+                Button,
+                {
+                  className: 'Button Button--default',
+                  icon: 'fas fa-copy',
+                  title: app.translator.trans('linkrobins-referral.forum.profile.copy'),
+                  onclick: function () {
+                    navigator.clipboard && navigator.clipboard.writeText(code.code);
+                  },
+                },
+                app.translator.trans('linkrobins-referral.forum.profile.copy')
+              ),
+              m(
+                Button,
+                {
+                  className: 'Button Button--default',
+                  icon: 'fas fa-link',
+                  title: app.translator.trans('linkrobins-referral.forum.profile.copy_link'),
+                  onclick: function () {
+                    navigator.clipboard && navigator.clipboard.writeText(inviteUrl(code.code));
+                  },
+                },
+                app.translator.trans('linkrobins-referral.forum.profile.copy_link')
+              ),
+              m(
+                Button,
+                {
+                  className: 'Button Button--default',
+                  icon: 'fas fa-qrcode',
+                  title: app.translator.trans('linkrobins-referral.forum.profile.qr_button'),
+                  onclick: function () {
+                    qrModal.show(inviteUrl(code.code), code.code);
+                  },
+                },
+                app.translator.trans('linkrobins-referral.forum.profile.qr_button')
+              )
+            )
+        );
       }
 
       content() {
         const user = this.user;
+        if (!user) return m(LoadingIndicator);
+
         const isOwn = app.session && app.session.user && app.session.user.id() === user.id();
         const count = user.referralCount ? user.referralCount() : 0;
-        const code = user.referralCode ? user.referralCode() : '';
-        const eligible = user.referralEligible ? user.referralEligible() : false;
-
-        // Generation is a write, so it no longer happens during GET
-        // serialization. When an eligible owner opens their tab without
-        // a code yet, request one (once) from the explicit endpoint and
-        // store it on the model so it renders.
-        if (isOwn && eligible && !code && !this._generating) {
-          this._generating = true;
-          var apiUrl = (app.forum && app.forum.attribute('apiUrl')) || '/api';
-          app
-            .request({ method: 'POST', url: apiUrl + '/referral/my-code' })
-            .then((res) => {
-              const newCode = res && res.data && res.data.code;
-              if (newCode) user.pushAttributes({ referralCode: newCode });
-              m.redraw();
-            })
-            .catch(() => {
-              m.redraw();
-            });
+        if (isOwn && this.codes === null) {
+          this.loadCodes();
+          return m(
+            'div',
+            { className: 'ReferralProfile' },
+            m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_title')),
+            m(LoadingIndicator, { display: 'block', size: 'small' })
+          );
         }
+        var entitlement = (this.meta && this.meta.entitlement) || {};
+        var purchase = (this.meta && this.meta.purchase) || {};
+        var eligible = entitlement.eligible;
 
         return m(
           'div',
           { className: 'ReferralProfile' },
-
-          // Not eligible under the admin rules: no code is offered.
           isOwn &&
-            !eligible &&
-            m(
-              'div',
-              { className: 'ReferralProfile-section' },
-              m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_title')),
-              m('p', { className: 'ReferralProfile-note' }, app.translator.trans('linkrobins-referral.forum.profile.not_eligible'))
-            ),
-
-          // Eligible but the code is still being generated.
-          isOwn &&
-            eligible &&
-            !code &&
-            m(
-              'div',
-              { className: 'ReferralProfile-section' },
-              m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_title')),
-              m(LoadingIndicator, { display: 'inline', size: 'small' })
-            ),
-
-          isOwn &&
-            eligible &&
-            code &&
             m(
               'div',
               { className: 'ReferralProfile-section' },
               m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_title')),
               m('p', { className: 'ReferralProfile-help' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_help')),
-              m(
-                'div',
-                { className: 'ReferralProfile-codeRow' },
-                m('div', { className: 'ReferralProfile-code' }, code),
+              eligible
+                ? m(
+                    'div',
+                    { className: 'ReferralProfile-summary' },
+                    m(
+                      'span',
+                      null,
+                      app.translator.trans('linkrobins-referral.forum.profile.group_quota', {
+                        current: entitlement.activeCount || 0,
+                        max: entitlement.maxQuantity || 0,
+                      })
+                    ),
+                    m(
+                      Button,
+                      {
+                        className: 'Button Button--primary',
+                        icon: 'fas fa-plus',
+                        loading: this.action === 'generate',
+                        disabled: this.action !== null || entitlement.remaining <= 0,
+                        onclick: () => this.runAction('generate', '/referral/my-codes/generate'),
+                      },
+                      app.translator.trans('linkrobins-referral.forum.profile.generate')
+                    )
+                  )
+                : m('p', { className: 'ReferralProfile-note' }, app.translator.trans('linkrobins-referral.forum.profile.not_eligible')),
+              purchase.enabled &&
                 m(
-                  'button',
-                  {
-                    className: 'Button Button--primary',
-                    type: 'button',
-                    onclick: function () {
-                      navigator.clipboard && navigator.clipboard.writeText(code);
+                  'div',
+                  { className: 'ReferralProfile-purchase' },
+                  m(
+                    'span',
+                    null,
+                    app.translator.trans('linkrobins-referral.forum.profile.purchase_summary', {
+                      price: purchase.price,
+                      currency: purchase.currencyName,
+                    })
+                  ),
+                  purchase.dailyLimit > 0 &&
+                    m(
+                      'span',
+                      null,
+                      app.translator.trans('linkrobins-referral.forum.profile.daily_remaining', { remaining: purchase.remainingToday })
+                    ),
+                  m(
+                    Button,
+                    {
+                      className: 'Button Button--default',
+                      icon: 'fas fa-coins',
+                      loading: this.action === 'purchase',
+                      disabled:
+                        this.action !== null ||
+                        !purchase.pointsAvailable ||
+                        purchase.balance < purchase.price ||
+                        (purchase.dailyLimit > 0 && purchase.remainingToday <= 0),
+                      onclick: () => this.runAction('purchase', '/referral/my-codes/purchase'),
                     },
-                  },
-                  app.translator.trans('linkrobins-referral.forum.profile.copy')
-                ),
-                m(
-                  'button',
-                  {
-                    className: 'Button Button--default',
-                    type: 'button',
-                    onclick: function () {
-                      navigator.clipboard && navigator.clipboard.writeText(inviteUrl(code));
-                    },
-                  },
-                  app.translator.trans('linkrobins-referral.forum.profile.copy_link')
-                ),
-                m(
-                  'button',
-                  {
-                    className: 'Button Button--default',
-                    type: 'button',
-                    onclick: function () {
-                      qrModal.show(inviteUrl(code), code);
-                    },
-                  },
-                  m('i', { className: 'icon fas fa-qrcode Button-icon', 'aria-hidden': 'true' }),
-                  ' ',
-                  app.translator.trans('linkrobins-referral.forum.profile.qr_button')
+                    app.translator.trans('linkrobins-referral.forum.profile.purchase')
+                  )
                 )
-              )
             ),
-
+          isOwn &&
+            m(
+              'div',
+              { className: 'ReferralProfile-section' },
+              m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.my_codes')),
+              this.codesLoading && m(LoadingIndicator, { display: 'inline', size: 'small' }),
+              !this.codesLoading && this.codes && this.codes.length
+                ? this.codes.map((code) => this.renderCode(code))
+                : !this.codesLoading &&
+                    m('p', { className: 'ReferralProfile-empty' }, app.translator.trans('linkrobins-referral.forum.profile.no_codes'))
+            ),
           m(
             'div',
+            { className: 'ReferralProfile-total' },
             m('h3', { className: 'ReferralProfile-totalHeading' }, app.translator.trans('linkrobins-referral.forum.profile.total_referrals')),
             m('p', { className: 'ReferralProfile-count' }, count),
             count === 0 && m('p', { className: 'ReferralProfile-empty' }, app.translator.trans('linkrobins-referral.forum.profile.no_referrals'))

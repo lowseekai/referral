@@ -100,6 +100,37 @@ class EligibilityCheckerTest extends MockeryTestCase
     }
 
     #[Test]
+    public function structured_group_rules_replace_the_legacy_group_list(): void
+    {
+        $checker = $this->checker([
+            'linkrobins-referral.eligibility_groups' => '[4]',
+            'linkrobins-referral.group_rules' => json_encode([
+                ['groupId' => 5, 'quantity' => 3, 'expiryHours' => 24],
+            ]),
+        ]);
+
+        $this->assertFalse($checker->isEligible($this->user(groupIds: [Group::MEMBER_ID, 4])));
+        $this->assertTrue($checker->isEligible($this->user(groupIds: [Group::MEMBER_ID, 5])));
+    }
+
+    #[Test]
+    public function the_highest_matching_group_quantity_wins(): void
+    {
+        $checker = $this->checker([
+            'linkrobins-referral.group_rules' => json_encode([
+                ['groupId' => 5, 'quantity' => 2, 'expiryHours' => 72],
+                ['groupId' => 6, 'quantity' => 8, 'expiryHours' => 24],
+            ]),
+        ]);
+
+        $rule = $checker->matchingGroupRule($this->user(groupIds: [Group::MEMBER_ID, 5, 6]));
+
+        $this->assertSame(6, $rule['groupId']);
+        $this->assertSame(8, $rule['quantity']);
+        $this->assertSame(24, $rule['expiryHours']);
+    }
+
+    #[Test]
     public function the_minimum_post_rule_counts_comments(): void
     {
         $checker = $this->checker([

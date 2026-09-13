@@ -7,6 +7,22 @@ linkrobins-referral:
       copy: Copy
       copy_link: Copy Referral Link
       qr_button: QR Code
+      channel_legacy: Personal
+      channel_group: User group
+      channel_purchase: Points purchase
+      channel_campaign: Campaign
+      used: Used
+      expired: Expired
+      uses: "{count} use"
+      expires_at: "Expires: {date}"
+      no_expiry: Never expires
+      group_quota: "{current} / {max} active group codes"
+      generate: Generate invite code
+      purchase_summary: "Buy an invite code for {price} {currency}"
+      daily_remaining: "{remaining} purchases remaining today"
+      purchase: Buy with points
+      my_codes: My invite codes
+      no_codes: No invite codes yet.
       total_referrals: Total Referrals
       no_referrals: No referrals yet. Share your invite code to get started!
       not_eligible: You're not eligible for a personal invite code yet. Keep participating and check back later.
@@ -59,6 +75,24 @@ linkrobins-referral:
       delete: Delete
       qr: Show QR code
       confirm_delete: Delete this campaign code? Anyone using it will no longer be able to register with it.
+    purchase:
+      title: Points purchase
+      help: Allow eligible members to buy single-use invite codes with their point balance.
+      enabled_label: Enable points purchase
+      price_label: Price per invite code
+      daily_limit_label: Daily purchase limit
+      daily_limit_help: Use 0 for no daily limit. The limit resets at midnight Beijing time.
+      expiry_label: Invite-code validity (hours)
+      expiry_help: Use 0 for codes that never expire. Times are calculated in Beijing time.
+      reward_label: Inviter reward
+      reward_help: Points awarded only to the inviter after a successful registration.
+    group_rules:
+      title: User group invite-code quotas
+      help: Users in multiple configured groups use the group with the highest quantity. Expired or used codes free quota, but users must generate replacements manually.
+      group_label: User group
+      quantity_label: Maximum active codes
+      expiry_label: Validity (hours)
+      expiry_help: Use 0 for no expiry.
   # Shared between the forum and admin frontends (core only delivers the
   # forum/admin/lib namespaces to the browser).
   lib:
@@ -68,6 +102,12 @@ linkrobins-referral:
   api:
     invalid_expiry: Invalid expiry date.
     label_too_long: The label is too long.
+    group_quota_reached: You have no remaining group invite-code quota.
+    purchase_disabled: Point purchases are currently disabled.
+    point_system_unavailable: The point system is not available.
+    purchase_not_configured: Invite-code purchasing is not configured.
+    daily_limit_reached: You have reached today's invite-code purchase limit.
+    insufficient_points: You do not have enough points to buy an invite code.
   # Server-side only (email notifications); never delivered to the browser.
   email:
     registered_subject: "{name} joined using your invite code"

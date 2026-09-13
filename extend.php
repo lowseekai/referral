@@ -5,7 +5,9 @@ use Flarum\Extend;
 use LinkRobins\Referral\Api\Controller\CreateCampaignCodeController;
 use LinkRobins\Referral\Api\Controller\DeleteCampaignCodeController;
 use LinkRobins\Referral\Api\Controller\GenerateMyCodeController;
+use LinkRobins\Referral\Api\Controller\ListMyCodesController;
 use LinkRobins\Referral\Api\Controller\ListCampaignCodesController;
+use LinkRobins\Referral\Api\Controller\PurchaseMyCodeController;
 use LinkRobins\Referral\Api\UserResourceFields;
 use LinkRobins\Referral\Http\CaptureReferralCookieMiddleware;
 use LinkRobins\Referral\Http\StripRefParamMiddleware;
@@ -57,6 +59,9 @@ return [
     // off the GET serialization path).
     (new Extend\Routes('api'))
         ->post('/referral/my-code', 'linkrobins-referral.my-code.generate', GenerateMyCodeController::class)
+        ->get('/referral/my-codes', 'linkrobins-referral.my-codes.list', ListMyCodesController::class)
+        ->post('/referral/my-codes/generate', 'linkrobins-referral.my-codes.generate', GenerateMyCodeController::class)
+        ->post('/referral/my-codes/purchase', 'linkrobins-referral.my-codes.purchase', PurchaseMyCodeController::class)
         ->get('/referral/campaign-codes', 'linkrobins-referral.campaign-codes.list', ListCampaignCodesController::class)
         ->post('/referral/campaign-codes', 'linkrobins-referral.campaign-codes.create', CreateCampaignCodeController::class)
         ->delete('/referral/campaign-codes/{id}', 'linkrobins-referral.campaign-codes.delete', DeleteCampaignCodeController::class),
@@ -65,7 +70,13 @@ return [
         ->serializeToForum('referralRequired', 'linkrobins-referral.require_referral', 'boolval')
         ->default('linkrobins-referral.require_referral', '0')
         ->default('linkrobins-referral.eligibility_groups', '')
+        ->default('linkrobins-referral.group_rules', '')
         ->default('linkrobins-referral.eligibility_min_posts', '0')
         ->default('linkrobins-referral.eligibility_min_age_days', '0')
-        ->default('linkrobins-referral.eligibility_whitelist', ''),
+        ->default('linkrobins-referral.eligibility_whitelist', '')
+        ->default('linkrobins-referral.purchase_enabled', '0')
+        ->default('linkrobins-referral.purchase_price', '0')
+        ->default('linkrobins-referral.purchase_daily_limit', '0')
+        ->default('linkrobins-referral.purchase_expiry_hours', '0')
+        ->default('linkrobins-referral.inviter_reward', '0'),
 ];

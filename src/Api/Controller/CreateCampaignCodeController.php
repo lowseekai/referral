@@ -8,6 +8,7 @@ use Flarum\Http\RequestUtil;
 use Flarum\Locale\TranslatorInterface;
 use Laminas\Diactoros\Response\JsonResponse;
 use LinkRobins\Referral\InviteCode;
+use LinkRobins\Referral\ReferralTime;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -39,7 +40,7 @@ class CreateCampaignCodeController implements RequestHandlerInterface
         $expiresAt = null;
         if (! empty($attributes['expiresAt'])) {
             try {
-                $expiresAt = Carbon::parse($attributes['expiresAt']);
+                $expiresAt = Carbon::parse($attributes['expiresAt'], ReferralTime::TIMEZONE);
             } catch (\Throwable $e) {
                 throw new ValidationException([
                     'expiresAt' => $this->translator->trans('linkrobins-referral.api.invalid_expiry'),

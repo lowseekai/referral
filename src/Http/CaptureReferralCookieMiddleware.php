@@ -3,6 +3,7 @@
 namespace LinkRobins\Referral\Http;
 
 use Illuminate\Contracts\Container\Container;
+use LinkRobins\Referral\InviteCode;
 use LinkRobins\Referral\PendingReferralState;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -34,13 +35,21 @@ class CaptureReferralCookieMiddleware implements MiddlewareInterface
             $code = '';
         }
 
-        if ($code !== '') {
-            // Resolve at call time (not via constructor injection) so we always
-            // get the current request's scoped instance, even if this middleware
-            // is itself cached by a persistent runtime.
-            $this->container->make(PendingReferralState::class)->setCode($code);
-        }
+        // Resolve at call time (not via constructor injection) so we always
+        // get the current request's scoped instance, even if this middleware
+        // is itself cached by a persistent runtime.
+        $this->container->make(PendingReferralState::class)->setCode($code !== '' ? $code : null);
 
-        return $handler->handle($request);
+        try {
+            return $handler->handle($request);
+        } finally {
+            // Saving may reserve a code before a later user-field validation
+            // fails. Release that request's reservation immediately; a
+            // successful Registered event clears the state after redemption.
+            $state = $this->container->make(PendingReferralState::class);
+            InviteCode::releaseReservation($state->getInviteId(), $state->getReservationToken());
+            $state->setInviteId(null);
+            $state->setReservationToken(null);
+        }
     }
 }

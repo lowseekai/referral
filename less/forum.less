@@ -34,6 +34,10 @@
     margin-bottom: 24px;
   }
 
+  &-total {
+    margin-top: 24px;
+  }
+
   &-heading {
     font-size: calc(1rem * var(--lr-text-scale, 1));
     font-weight: 700;
@@ -56,6 +60,58 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+  }
+
+  &-summary,
+  &-purchase {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+
+  &-purchase {
+    padding-top: 12px;
+    border-top: 1px solid var(--control-bg);
+  }
+
+  &-codeItem {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--control-bg);
+  }
+
+  &-codeMeta,
+  &-codeDetails,
+  &-codeActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  &-codeDetails {
+    color: var(--muted-color);
+    font-size: 0.85rem;
+    margin-top: 8px;
+  }
+
+  &-codeActions {
+    margin-top: 10px;
+  }
+
+  &-badge,
+  &-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: var(--border-radius, 4px);
+    background: var(--control-bg);
+    font-size: 0.8rem;
+  }
+
+  &-status--used,
+  &-status--expired {
+    color: var(--muted-color);
   }
 
   &-code {

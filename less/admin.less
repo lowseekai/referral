@@ -46,6 +46,29 @@
     margin-top: 2px;
   }
 
+  .ReferralAdmin-groupRules {
+    display: grid;
+    gap: 10px;
+  }
+
+  .ReferralAdmin-groupRulesHeader,
+  .ReferralAdmin-groupRule {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) 140px 140px;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .ReferralAdmin-groupRulesHeader {
+    color: var(--muted-color);
+    font-size: 87%;
+    font-weight: 600;
+  }
+
+  .ReferralAdmin-groupRule .Switch {
+    margin: 0;
+  }
+
   .ReferralAdmin-numberInput {
     max-width: 120px;
   }

@@ -75,7 +75,14 @@ app.initializers.add('linkrobins/referral-admin', function () {
       return m(
         'div',
         { className: 'ExtensionPage-settings' },
-        m('div', { className: 'container ReferralAdmin' }, this.renderGeneralSection(), this.renderEligibilitySection(), this.renderCampaignSection())
+        m(
+          'div',
+          { className: 'container ReferralAdmin' },
+          this.renderGeneralSection(),
+          this.renderEligibilitySection(),
+          this.renderPurchaseSection(),
+          this.renderCampaignSection()
+        )
       );
     }
 
@@ -106,8 +113,6 @@ app.initializers.add('linkrobins/referral-admin', function () {
     renderEligibilitySection() {
       var self = this;
       var groups = pickableGroups();
-      var selected = this.selectedGroupIds();
-
       return m(
         FieldSet,
         { label: trans('eligibility.title') },
@@ -119,27 +124,9 @@ app.initializers.add('linkrobins/referral-admin', function () {
           m(
             'div',
             { className: 'Form-group' },
-            m('label', trans('eligibility.groups_label')),
-            help(trans('eligibility.groups_help')),
-            groups.length
-              ? m(
-                  'div',
-                  { className: 'ReferralAdmin-groups' },
-                  groups.map(function (g) {
-                    return m(
-                      Switch,
-                      {
-                        key: g.id(),
-                        state: selected.indexOf(g.id()) !== -1,
-                        onchange: function () {
-                          self.toggleGroup(g.id());
-                        },
-                      },
-                      g.namePlural()
-                    );
-                  })
-                )
-              : m(LoadingIndicator, { display: 'inline', size: 'small' })
+            m('label', trans('group_rules.title')),
+            help(trans('group_rules.help')),
+            this.renderGroupRules(groups)
           ),
 
           m('div', { className: 'Form-group' }, m('label', trans('eligibility.min_posts_label')), this.numberInput('eligibility_min_posts')),
@@ -159,6 +146,110 @@ app.initializers.add('linkrobins/referral-admin', function () {
                 saveSetting('eligibility_whitelist', e.target.value);
               },
             })
+          )
+        )
+      );
+    }
+
+    renderGroupRules(groups) {
+      var self = this;
+      var rules = this.groupRules();
+
+      if (!groups.length) return m(LoadingIndicator, { display: 'inline', size: 'small' });
+
+      return m(
+        'div',
+        { className: 'ReferralAdmin-groupRules' },
+        m(
+          'div',
+          { className: 'ReferralAdmin-groupRulesHeader' },
+          m('span', trans('group_rules.group_label')),
+          m('span', trans('group_rules.quantity_label')),
+          m('span', trans('group_rules.expiry_label'))
+        ),
+        groups.map(function (g) {
+          var id = Number(g.id());
+          var rule = rules[id] || null;
+
+          return m(
+            'div',
+            { className: 'ReferralAdmin-groupRule', key: id },
+            m(
+              Switch,
+              {
+                state: !!rule,
+                onchange: function (enabled) {
+                  self.setGroupRule(id, enabled ? { quantity: 1, expiryHours: 0 } : null);
+                },
+              },
+              g.namePlural()
+            ),
+            m('input', {
+              className: 'FormControl ReferralAdmin-numberInput',
+              type: 'number',
+              min: '0',
+              disabled: !rule,
+              value: rule ? rule.quantity : 0,
+              onchange: function (e) {
+                if (rule) self.setGroupRule(id, { quantity: Math.max(0, parseInt(e.target.value, 10) || 0), expiryHours: rule.expiryHours });
+              },
+            }),
+            m('input', {
+              className: 'FormControl ReferralAdmin-numberInput',
+              type: 'number',
+              min: '0',
+              disabled: !rule,
+              value: rule ? rule.expiryHours : 0,
+              onchange: function (e) {
+                if (rule) self.setGroupRule(id, { quantity: rule.quantity, expiryHours: Math.max(0, parseInt(e.target.value, 10) || 0) });
+              },
+            })
+          );
+        })
+      );
+    }
+
+    renderPurchaseSection() {
+      var self = this;
+
+      return m(
+        FieldSet,
+        { label: trans('purchase.title') },
+        m(
+          'div',
+          null,
+          help(trans('purchase.help')),
+          m(
+            Switch,
+            {
+              state: setting('purchase_enabled') === '1',
+              onchange: function (val) {
+                saveSetting('purchase_enabled', val ? '1' : '0').then(m.redraw);
+              },
+            },
+            trans('purchase.enabled_label')
+          ),
+          m('div', { className: 'Form-group' }, m('label', trans('purchase.price_label')), this.numberInput('purchase_price')),
+          m(
+            'div',
+            { className: 'Form-group' },
+            m('label', trans('purchase.daily_limit_label')),
+            help(trans('purchase.daily_limit_help')),
+            this.numberInput('purchase_daily_limit')
+          ),
+          m(
+            'div',
+            { className: 'Form-group' },
+            m('label', trans('purchase.expiry_label')),
+            help(trans('purchase.expiry_help')),
+            this.numberInput('purchase_expiry_hours')
+          ),
+          m(
+            'div',
+            { className: 'Form-group' },
+            m('label', trans('purchase.reward_label')),
+            help(trans('purchase.reward_help')),
+            this.numberInput('inviter_reward')
           )
         )
       );
@@ -319,23 +410,53 @@ app.initializers.add('linkrobins/referral-admin', function () {
         });
     }
 
-    selectedGroupIds() {
-      var ids;
+    groupRules() {
+      var raw = setting('group_rules');
+      var decoded;
       try {
-        ids = JSON.parse(setting('eligibility_groups') || '[]');
+        decoded = raw ? JSON.parse(raw) : null;
       } catch (e) {
-        ids = [];
+        decoded = null;
       }
-      return (ids || []).map(String);
+
+      if (Array.isArray(decoded)) {
+        var current = {};
+        decoded.forEach(function (rule) {
+          if (!rule || !rule.groupId) return;
+          current[Number(rule.groupId)] = {
+            quantity: Math.max(0, Number(rule.quantity) || 0),
+            expiryHours: Math.max(0, Number(rule.expiryHours) || Number(rule.expiryDays) * 24 || 0),
+          };
+        });
+        return current;
+      }
+
+      var legacy = [];
+      try {
+        legacy = JSON.parse(setting('eligibility_groups') || '[]');
+      } catch (e) {}
+
+      var fallback = {};
+      (legacy || []).forEach(function (id) {
+        fallback[Number(id)] = { quantity: 1, expiryHours: 0 };
+      });
+      return fallback;
     }
 
-    toggleGroup(id) {
-      id = String(id);
-      var ids = this.selectedGroupIds();
-      var idx = ids.indexOf(id);
-      if (idx === -1) ids.push(id);
-      else ids.splice(idx, 1);
-      saveSetting('eligibility_groups', JSON.stringify(ids.map(Number))).then(m.redraw);
+    setGroupRule(id, rule) {
+      var rules = this.groupRules();
+      if (rule) rules[Number(id)] = rule;
+      else delete rules[Number(id)];
+
+      var payload = Object.keys(rules).map(function (groupId) {
+        return {
+          groupId: Number(groupId),
+          quantity: Math.max(0, Number(rules[groupId].quantity) || 0),
+          expiryHours: Math.max(0, Number(rules[groupId].expiryHours) || 0),
+        };
+      });
+
+      saveSetting('group_rules', JSON.stringify(payload)).then(m.redraw);
     }
 
     createCode() {
@@ -344,7 +465,7 @@ app.initializers.add('linkrobins/referral-admin', function () {
       var expiry = this.newExpiry || '';
       var attrs = {};
       if (label) attrs.label = label;
-      if (expiry) attrs.expiresAt = new Date(expiry + 'T23:59:59').toISOString();
+      if (expiry) attrs.expiresAt = expiry + 'T23:59:59+08:00';
 
       this.creating = true;
       m.redraw();
