@@ -104,7 +104,34 @@ app.initializers.add('linkrobins/referral-admin', function () {
             },
             trans('settings.require_label')
           ),
-          help(trans('settings.require_help'))
+          help(trans('settings.require_help')),
+          m(
+            Switch,
+            {
+              state: setting('get_invite_enabled') === '1',
+              onchange: function (val) {
+                saveSetting('get_invite_enabled', val ? '1' : '0').then(m.redraw);
+              },
+            },
+            trans('settings.get_invite_enabled_label')
+          ),
+          help(trans('settings.get_invite_enabled_help')),
+          m(
+            'div',
+            { className: 'Form-group ReferralAdmin-inviteLink' },
+            m('label', trans('settings.get_invite_url_label')),
+            help(trans('settings.get_invite_url_help')),
+            m('input', {
+              className: 'FormControl',
+              type: 'text',
+              inputmode: 'url',
+              placeholder: trans('settings.get_invite_url_placeholder'),
+              value: setting('get_invite_url') || '',
+              onchange: function (e) {
+                saveSetting('get_invite_url', e.target.value.trim());
+              },
+            })
+          )
         )
       );
     }
@@ -355,7 +382,7 @@ app.initializers.add('linkrobins/referral-admin', function () {
         'tr',
         { key: c.id },
         m('td', m('span', { className: 'ReferralAdmin-codeChip' }, c.code)),
-        m('td', c.label || '—'),
+        m('td', c.label || trans('campaign.no_label')),
         m('td', String(c.uses)),
         m(
           'td',

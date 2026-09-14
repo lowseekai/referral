@@ -45,8 +45,10 @@ class MyCodeTest extends TestCase
     }
 
     #[Test]
-    public function an_eligible_user_can_generate_until_their_default_quota_is_reached(): void
+    public function a_user_with_a_matching_group_rule_can_generate_until_quota_is_reached(): void
     {
+        $this->grantGroupQuota(2, 10, 1);
+
         $first = $this->send(
             $this->request('POST', '/api/referral/my-code', ['authenticatedAs' => 2])
         );
@@ -66,6 +68,8 @@ class MyCodeTest extends TestCase
     #[Test]
     public function users_can_list_their_codes_and_remaining_quota(): void
     {
+        $this->grantGroupQuota(2, 10, 1);
+
         $this->prepareDatabase([
             'referral_invite_codes' => [
                 ['id' => 1, 'user_id' => 2, 'code' => 'TESTCODE', 'uses' => 0, 'channel' => 'group'],
@@ -88,6 +92,8 @@ class MyCodeTest extends TestCase
     #[Test]
     public function expired_group_codes_no_longer_consume_generation_quota(): void
     {
+        $this->grantGroupQuota(2, 10, 1);
+
         $this->prepareDatabase([
             'referral_invite_codes' => [
                 [
@@ -148,15 +154,29 @@ class MyCodeTest extends TestCase
     }
 
     #[Test]
-    public function an_ineligible_user_is_denied(): void
+    public function a_user_without_a_matching_group_rule_is_denied(): void
     {
-        $this->setting('linkrobins-referral.eligibility_min_posts', '5');
-
         $response = $this->send(
             $this->request('POST', '/api/referral/my-code', ['authenticatedAs' => 2])
         );
 
         $this->assertEquals(403, $response->getStatusCode());
         $this->assertEquals(0, $this->database()->table('referral_invite_codes')->count());
+    }
+
+    private function grantGroupQuota(int $userId, int $groupId, int $quantity, int $expiryHours = 0): void
+    {
+        $this->setting('linkrobins-referral.group_rules', json_encode([
+            ['groupId' => $groupId, 'quantity' => $quantity, 'expiryHours' => $expiryHours],
+        ]));
+
+        $this->prepareDatabase([
+            'groups' => [
+                ['id' => $groupId, 'name_singular' => 'Inviter', 'name_plural' => 'Inviters', 'color' => null, 'icon' => null],
+            ],
+            'group_user' => [
+                ['user_id' => $userId, 'group_id' => $groupId],
+            ],
+        ]);
     }
 }

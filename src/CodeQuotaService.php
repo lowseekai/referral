@@ -51,11 +51,9 @@ class CodeQuotaService
             ];
         }
 
-        // Preserve the original extension's one personal code for users who
-        // qualify through the global rules, whitelist, or administrator access.
         return [
-            'eligible' => true,
-            'maxQuantity' => 1,
+            'eligible' => false,
+            'maxQuantity' => 0,
             'expiryHours' => 0,
             'sourceGroupId' => null,
             'sourceGroupName' => null,

@@ -21,6 +21,17 @@
   }
 }
 
+.ReferralSignup-getInvite {
+  margin-top: 10px;
+  margin-bottom: 0;
+  font-size: 0.9rem;
+
+  a {
+    margin-left: 4px;
+    font-weight: 600;
+  }
+}
+
 // `text-transform: uppercase` used to sit on the input above. It never reached
 // a real code, because every path that sets the value already uppercases it in
 // JS (the oninput handler and the ?ref= prefill both do
@@ -81,6 +92,65 @@
     border-bottom: 1px solid var(--control-bg);
   }
 
+  &-codeTableCard {
+    margin-top: 12px;
+    border: 1px solid var(--control-bg);
+    border-radius: var(--border-radius, 4px);
+    overflow: hidden;
+  }
+
+  &-codeTableHeader,
+  &-codeTableRow {
+    display: grid;
+    grid-template-columns: minmax(120px, 1.2fr) minmax(100px, 1fr) minmax(80px, 0.8fr) minmax(150px, 1.4fr) minmax(210px, 2fr);
+    gap: 12px;
+    align-items: center;
+    padding: 14px 16px;
+  }
+
+  &-codeTableHeader {
+    background: var(--control-bg);
+    color: var(--muted-color);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  &-codeTableRow {
+    border-top: 1px solid var(--control-bg);
+  }
+
+  &-codeTableCell {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  &-cellLabel {
+    display: none;
+    color: var(--muted-color);
+    font-size: 0.8rem;
+    font-weight: 600;
+    flex: 0 0 72px;
+  }
+
+  &-codeTableCell--code {
+    min-width: 0;
+  }
+
+  &-codeTableCell--details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &-codeUses {
+    color: var(--muted-color);
+    font-size: 0.85rem;
+  }
+
+  &-codeTableCell--actions {
+    min-width: 0;
+  }
+
   &-codeMeta,
   &-codeDetails,
   &-codeActions {
@@ -114,13 +184,14 @@
     color: var(--muted-color);
   }
 
+  &-status--available {
+    color: var(--success-color, #2d8a57);
+  }
+
   &-code {
-    font-size: calc(1.75rem * var(--lr-text-scale, 1));
+    font-size: calc(1.15rem * var(--lr-text-scale, 1));
     font-weight: 800;
-    letter-spacing: 6px;
-    background: var(--control-bg);
-    padding: 12px 24px;
-    border-radius: var(--border-radius, 4px);
+    letter-spacing: 3px;
     font-family: monospace;
     color: var(--primary-color);
   }
@@ -141,6 +212,45 @@
     color: var(--muted-color);
     font-size: calc(0.9rem * var(--lr-text-scale, 1));
     margin-top: 4px;
+  }
+}
+
+@media (max-width: 900px) {
+  .ReferralProfile {
+    &-codeTableHeader {
+      display: none;
+    }
+
+    &-codeTableRow {
+      display: block;
+      padding: 14px;
+    }
+
+    &-codeTableCell {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 7px 0;
+    }
+
+    &-codeTableCell--details {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+    }
+
+    &-codeTableCell--actions {
+      display: block;
+      padding-bottom: 0;
+    }
+
+    &-cellLabel {
+      display: inline-block;
+    }
+
+    &-codeActions {
+      margin-top: 8px;
+    }
   }
 }
 

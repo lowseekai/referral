@@ -68,7 +68,11 @@ return [
 
     (new Extend\Settings())
         ->serializeToForum('referralRequired', 'linkrobins-referral.require_referral', 'boolval')
+        ->serializeToForum('referralGetInviteEnabled', 'linkrobins-referral.get_invite_enabled', 'boolval')
+        ->serializeToForum('referralGetInviteUrl', 'linkrobins-referral.get_invite_url')
         ->default('linkrobins-referral.require_referral', '0')
+        ->default('linkrobins-referral.get_invite_enabled', '0')
+        ->default('linkrobins-referral.get_invite_url', '')
         ->default('linkrobins-referral.eligibility_groups', '')
         ->default('linkrobins-referral.group_rules', '')
         ->default('linkrobins-referral.eligibility_min_posts', '0')

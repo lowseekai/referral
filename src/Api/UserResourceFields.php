@@ -7,7 +7,6 @@ use Flarum\Api\Schema\Relationship\ToMany;
 use Flarum\Api\Schema\Relationship\ToOne;
 use Flarum\User\User;
 use LinkRobins\Referral\EligibilityChecker;
-use LinkRobins\Referral\InviteCode;
 use LinkRobins\Referral\ReferralRelation;
 
 class UserResourceFields
@@ -36,29 +35,11 @@ class UserResourceFields
             Attribute::make('referralCount')
                 ->get(fn (User $user) => (int) ($user->referral_count ?? 0)),
 
-            // Whether this user is allowed a personal invite code (admin rules:
-            // groups / min posts / account age / whitelist). Only meaningful to
-            // the user themselves, so it is gated to self like the code itself.
+            // Whether this user can generate invite codes under the configured
+            // eligibility rules. Only meaningful to the user themselves.
             Attribute::make('referralEligible')
                 ->visible(fn (User $user, $context) => $context->getActor()->id === $user->id)
                 ->get(fn (User $user) => $this->eligibility->isEligible($user)),
-
-            // Backward-compatible single-code attribute. The new forum UI uses
-            // /api/referral/my-codes, but older clients should never receive a
-            // used or expired code from this field.
-            Attribute::make('referralCode')
-                ->visible(fn (User $user, $context) => $context->getActor()->id === $user->id)
-                ->get(fn (User $user) => $this->eligibility->isEligible($user)
-                    ? InviteCode::where('user_id', $user->id)
-                        ->where('uses', 0)
-                        ->whereNull('used_at')
-                        ->where(function ($query) {
-                            $query->whereNull('expires_at')
-                                ->orWhere('expires_at', '>', \LinkRobins\Referral\ReferralTime::now()->utc());
-                        })
-                        ->orderByDesc('id')
-                        ->value('code')
-                    : null),
 
             // The referral graph (who referred whom) is private to the user
             // and admins; not exposed for arbitrary users via ?include=.

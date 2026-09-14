@@ -33,7 +33,7 @@
     },
     "extra": {
         "flarum-extension": {
-            "title": "Link Robins Referral",
+            "title": "邀请码推荐系统",
             "category": "feature",
             "migrations": "migrations",
             "icon": {

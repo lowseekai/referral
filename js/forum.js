@@ -17,7 +17,6 @@ var qrModal = require('./qrModal');
     var UserModel = app.store.models['users'];
     if (UserModel) {
       UserModel.prototype.referralCount = Model.attribute('referralCount');
-      UserModel.prototype.referralCode = Model.attribute('referralCode');
       UserModel.prototype.referralEligible = Model.attribute('referralEligible');
       UserModel.prototype.referredBy = Model.hasOne('referredBy');
       UserModel.prototype.referredUsers = Model.hasMany('referredUsers');
@@ -52,6 +51,60 @@ var qrModal = require('./qrModal');
       }
     }
 
+    function isEnabled(value) {
+      return value === true || value === 1 || value === '1';
+    }
+
+    function safeInviteLink(value) {
+      var raw = String(value || '').trim();
+      if (!raw) return '';
+
+      if (raw.charAt(0) === '/' && raw.charAt(1) !== '/') {
+        return raw;
+      }
+
+      try {
+        var url = new URL(raw, window.location.origin);
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          return url.href;
+        }
+      } catch (e) {
+        // Ignore malformed admin input instead of rendering an unsafe href.
+      }
+
+      return '';
+    }
+
+    function isExternalInviteLink(url) {
+      try {
+        return new URL(url, window.location.origin).origin !== window.location.origin;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function renderGetInvitePrompt() {
+      var enabled = app.forum && app.forum.attribute('referralGetInviteEnabled');
+      var url = safeInviteLink(app.forum && app.forum.attribute('referralGetInviteUrl'));
+      if (!isEnabled(enabled) || !url) return null;
+      var external = isExternalInviteLink(url);
+
+      return m(
+        'div',
+        { className: 'Alert get-invite-code-text ReferralSignup-getInvite' },
+        m('span', app.translator.trans('linkrobins-referral.forum.sign_up.get_invite_text')),
+        m(
+          'a',
+          {
+            href: url,
+            target: external ? '_blank' : null,
+            rel: external ? 'noopener noreferrer' : null,
+          },
+          app.translator.trans('linkrobins-referral.forum.sign_up.get_invite_link')
+        )
+      );
+    }
+
     function extendSignUpModal(SignUpModal) {
       if (!SignUpModal || SignUpModal._referralExtended) return;
       SignUpModal._referralExtended = true;
@@ -83,7 +136,8 @@ var qrModal = require('./qrModal');
                 e.target.value = self._inviteCode;
               },
               required: required || false,
-            })
+            }),
+            renderGetInvitePrompt()
           ),
           5
         );
@@ -168,84 +222,100 @@ var qrModal = require('./qrModal');
       renderCode(code) {
         var channel = code.channel || 'legacy';
         var unavailable = code.used || code.expired;
-        var channelLabel = app.translator.trans('linkrobins-referral.forum.profile.channel_' + channel);
+        var channelKey = channel === 'legacy' ? 'group' : channel;
+        var channelLabel = app.translator.trans('linkrobins-referral.forum.profile.channel_' + channelKey);
+        var statusKey = code.used ? 'used' : code.expired ? 'expired' : 'available';
 
         return m(
           'div',
-          { className: 'ReferralProfile-codeItem' },
+          { className: 'ReferralProfile-codeTableRow' },
           m(
             'div',
-            { className: 'ReferralProfile-codeMeta' },
-            m('span', { className: 'ReferralProfile-code' }, code.code),
-            m('span', { className: 'ReferralProfile-badge' }, channelLabel),
-            code.used &&
-              m(
-                'span',
-                { className: 'ReferralProfile-status ReferralProfile-status--used' },
-                app.translator.trans('linkrobins-referral.forum.profile.used')
-              ),
-            code.expired &&
-              m(
-                'span',
-                { className: 'ReferralProfile-status ReferralProfile-status--expired' },
-                app.translator.trans('linkrobins-referral.forum.profile.expired')
-              )
+            { className: 'ReferralProfile-codeTableCell ReferralProfile-codeTableCell--code' },
+            m('span', { className: 'ReferralProfile-cellLabel' }, app.translator.trans('linkrobins-referral.forum.profile.table_code')),
+            m('span', { className: 'ReferralProfile-code' }, code.code)
           ),
           m(
             'div',
-            { className: 'ReferralProfile-codeDetails' },
-            m('span', null, app.translator.trans('linkrobins-referral.forum.profile.uses', { count: code.uses || 0 })),
-            code.expiresAt
-              ? m(
-                  'span',
-                  null,
-                  app.translator.trans('linkrobins-referral.forum.profile.expires_at', {
+            { className: 'ReferralProfile-codeTableCell' },
+            m('span', { className: 'ReferralProfile-cellLabel' }, app.translator.trans('linkrobins-referral.forum.profile.table_source')),
+            m('span', { className: 'ReferralProfile-badge' }, channelLabel)
+          ),
+          m(
+            'div',
+            { className: 'ReferralProfile-codeTableCell' },
+            m('span', { className: 'ReferralProfile-cellLabel' }, app.translator.trans('linkrobins-referral.forum.profile.table_status')),
+            m(
+              'span',
+              { className: 'ReferralProfile-status ReferralProfile-status--' + statusKey },
+              app.translator.trans('linkrobins-referral.forum.profile.' + statusKey)
+            )
+          ),
+          m(
+            'div',
+            { className: 'ReferralProfile-codeTableCell ReferralProfile-codeTableCell--details' },
+            m('span', { className: 'ReferralProfile-cellLabel' }, app.translator.trans('linkrobins-referral.forum.profile.table_validity')),
+            m(
+              'span',
+              null,
+              code.expiresAt
+                ? app.translator.trans('linkrobins-referral.forum.profile.expires_at', {
                     date: new Date(code.expiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
                   })
-                )
-              : m('span', null, app.translator.trans('linkrobins-referral.forum.profile.no_expiry'))
-          ),
-          !unavailable &&
+                : app.translator.trans('linkrobins-referral.forum.profile.no_expiry')
+            ),
             m(
-              'div',
-              { className: 'ReferralProfile-codeActions' },
-              m(
-                Button,
-                {
-                  className: 'Button Button--default',
-                  icon: 'fas fa-copy',
-                  title: app.translator.trans('linkrobins-referral.forum.profile.copy'),
-                  onclick: function () {
-                    navigator.clipboard && navigator.clipboard.writeText(code.code);
-                  },
-                },
-                app.translator.trans('linkrobins-referral.forum.profile.copy')
-              ),
-              m(
-                Button,
-                {
-                  className: 'Button Button--default',
-                  icon: 'fas fa-link',
-                  title: app.translator.trans('linkrobins-referral.forum.profile.copy_link'),
-                  onclick: function () {
-                    navigator.clipboard && navigator.clipboard.writeText(inviteUrl(code.code));
-                  },
-                },
-                app.translator.trans('linkrobins-referral.forum.profile.copy_link')
-              ),
-              m(
-                Button,
-                {
-                  className: 'Button Button--default',
-                  icon: 'fas fa-qrcode',
-                  title: app.translator.trans('linkrobins-referral.forum.profile.qr_button'),
-                  onclick: function () {
-                    qrModal.show(inviteUrl(code.code), code.code);
-                  },
-                },
-                app.translator.trans('linkrobins-referral.forum.profile.qr_button')
-              )
+              'span',
+              { className: 'ReferralProfile-codeUses' },
+              app.translator.trans('linkrobins-referral.forum.profile.uses', { count: code.uses || 0 })
             )
+          ),
+          m(
+            'div',
+            { className: 'ReferralProfile-codeTableCell ReferralProfile-codeTableCell--actions' },
+            m('span', { className: 'ReferralProfile-cellLabel' }, app.translator.trans('linkrobins-referral.forum.profile.table_actions')),
+            !unavailable &&
+              m(
+                'div',
+                { className: 'ReferralProfile-codeActions' },
+                m(
+                  Button,
+                  {
+                    className: 'Button Button--default',
+                    icon: 'fas fa-copy',
+                    title: app.translator.trans('linkrobins-referral.forum.profile.copy'),
+                    onclick: function () {
+                      navigator.clipboard && navigator.clipboard.writeText(code.code);
+                    },
+                  },
+                  app.translator.trans('linkrobins-referral.forum.profile.copy')
+                ),
+                m(
+                  Button,
+                  {
+                    className: 'Button Button--default',
+                    icon: 'fas fa-link',
+                    title: app.translator.trans('linkrobins-referral.forum.profile.copy_link'),
+                    onclick: function () {
+                      navigator.clipboard && navigator.clipboard.writeText(inviteUrl(code.code));
+                    },
+                  },
+                  app.translator.trans('linkrobins-referral.forum.profile.copy_link')
+                ),
+                m(
+                  Button,
+                  {
+                    className: 'Button Button--default',
+                    icon: 'fas fa-qrcode',
+                    title: app.translator.trans('linkrobins-referral.forum.profile.qr_button'),
+                    onclick: function () {
+                      qrModal.show(inviteUrl(code.code), code.code);
+                    },
+                  },
+                  app.translator.trans('linkrobins-referral.forum.profile.qr_button')
+                )
+              )
+          )
         );
       }
 
@@ -344,7 +414,20 @@ var qrModal = require('./qrModal');
               m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.my_codes')),
               this.codesLoading && m(LoadingIndicator, { display: 'inline', size: 'small' }),
               !this.codesLoading && this.codes && this.codes.length
-                ? this.codes.map((code) => this.renderCode(code))
+                ? m(
+                    'div',
+                    { className: 'ReferralProfile-codeTableCard' },
+                    m(
+                      'div',
+                      { className: 'ReferralProfile-codeTableHeader' },
+                      m('span', app.translator.trans('linkrobins-referral.forum.profile.table_code')),
+                      m('span', app.translator.trans('linkrobins-referral.forum.profile.table_source')),
+                      m('span', app.translator.trans('linkrobins-referral.forum.profile.table_status')),
+                      m('span', app.translator.trans('linkrobins-referral.forum.profile.table_validity')),
+                      m('span', app.translator.trans('linkrobins-referral.forum.profile.table_actions'))
+                    ),
+                    this.codes.map((code) => this.renderCode(code))
+                  )
                 : !this.codesLoading &&
                     m('p', { className: 'ReferralProfile-empty' }, app.translator.trans('linkrobins-referral.forum.profile.no_codes'))
             ),
