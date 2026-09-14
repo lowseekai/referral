@@ -319,6 +319,20 @@ var qrModal = require('./qrModal');
         );
       }
 
+      renderAccessChannel(title, icon, className, body) {
+        return m(
+          'div',
+          { className: 'ReferralProfile-channel ReferralProfile-channel--' + className },
+          m(
+            'div',
+            { className: 'ReferralProfile-channelHeader' },
+            m('i', { className: 'icon ' + icon, 'aria-hidden': 'true' }),
+            m('h4', { className: 'ReferralProfile-channelTitle' }, title)
+          ),
+          body
+        );
+      }
+
       content() {
         const user = this.user;
         if (!user) return m(LoadingIndicator);
@@ -344,68 +358,140 @@ var qrModal = require('./qrModal');
           isOwn &&
             m(
               'div',
-              { className: 'ReferralProfile-section' },
-              m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_title')),
+              { className: 'ReferralProfile-section ReferralProfile-access' },
+              m('h3', { className: 'ReferralProfile-heading' }, app.translator.trans('linkrobins-referral.forum.profile.access_title')),
               m('p', { className: 'ReferralProfile-help' }, app.translator.trans('linkrobins-referral.forum.profile.invite_code_help')),
-              eligible
-                ? m(
-                    'div',
-                    { className: 'ReferralProfile-summary' },
-                    m(
-                      'span',
-                      null,
-                      app.translator.trans('linkrobins-referral.forum.profile.group_quota', {
-                        current: entitlement.activeCount || 0,
-                        max: entitlement.maxQuantity || 0,
-                      })
-                    ),
-                    m(
-                      Button,
-                      {
-                        className: 'Button Button--primary',
-                        icon: 'fas fa-plus',
-                        loading: this.action === 'generate',
-                        disabled: this.action !== null || entitlement.remaining <= 0,
-                        onclick: () => this.runAction('generate', '/referral/my-codes/generate'),
-                      },
-                      app.translator.trans('linkrobins-referral.forum.profile.generate')
-                    )
-                  )
-                : m('p', { className: 'ReferralProfile-note' }, app.translator.trans('linkrobins-referral.forum.profile.not_eligible')),
-              purchase.enabled &&
-                m(
-                  'div',
-                  { className: 'ReferralProfile-purchase' },
-                  m(
-                    'span',
-                    null,
-                    app.translator.trans('linkrobins-referral.forum.profile.purchase_summary', {
-                      price: purchase.price,
-                      currency: purchase.currencyName,
-                    })
-                  ),
-                  purchase.dailyLimit > 0 &&
-                    m(
-                      'span',
-                      null,
-                      app.translator.trans('linkrobins-referral.forum.profile.daily_remaining', { remaining: purchase.remainingToday })
-                    ),
-                  m(
-                    Button,
-                    {
-                      className: 'Button Button--default',
-                      icon: 'fas fa-coins',
-                      loading: this.action === 'purchase',
-                      disabled:
-                        this.action !== null ||
-                        !purchase.pointsAvailable ||
-                        purchase.balance < purchase.price ||
-                        (purchase.dailyLimit > 0 && purchase.remainingToday <= 0),
-                      onclick: () => this.runAction('purchase', '/referral/my-codes/purchase'),
-                    },
-                    app.translator.trans('linkrobins-referral.forum.profile.purchase')
-                  )
+              m(
+                'div',
+                { className: 'ReferralProfile-channelGrid' },
+                this.renderAccessChannel(
+                  app.translator.trans('linkrobins-referral.forum.profile.group_channel_title'),
+                  'fas fa-users',
+                  'group',
+                  eligible
+                    ? m(
+                        'div',
+                        { className: 'ReferralProfile-channelBody' },
+                        m(
+                          'p',
+                          { className: 'ReferralProfile-channelHelp' },
+                          app.translator.trans('linkrobins-referral.forum.profile.group_channel_help')
+                        ),
+                        m(
+                          'div',
+                          { className: 'ReferralProfile-channelMeta' },
+                          m(
+                            'span',
+                            null,
+                            app.translator.trans('linkrobins-referral.forum.profile.group_quota', {
+                              current: entitlement.activeCount || 0,
+                              max: entitlement.maxQuantity || 0,
+                            })
+                          ),
+                          m(
+                            'span',
+                            null,
+                            entitlement.expiryHours > 0
+                              ? app.translator.trans('linkrobins-referral.forum.profile.group_channel_expiry', { hours: entitlement.expiryHours })
+                              : app.translator.trans('linkrobins-referral.forum.profile.group_channel_no_expiry')
+                          )
+                        ),
+                        m(
+                          Button,
+                          {
+                            className: 'Button Button--primary',
+                            icon: 'fas fa-plus',
+                            loading: this.action === 'generate',
+                            disabled: this.action !== null || entitlement.remaining <= 0,
+                            onclick: () => this.runAction('generate', '/referral/my-codes/generate'),
+                          },
+                          app.translator.trans('linkrobins-referral.forum.profile.generate')
+                        )
+                      )
+                    : m(
+                        'div',
+                        { className: 'ReferralProfile-channelBody' },
+                        m(
+                          'p',
+                          { className: 'ReferralProfile-channelHelp' },
+                          app.translator.trans('linkrobins-referral.forum.profile.group_channel_unavailable')
+                        )
+                      )
+                ),
+                this.renderAccessChannel(
+                  app.translator.trans('linkrobins-referral.forum.profile.purchase_channel_title'),
+                  'fas fa-coins',
+                  'purchase',
+                  purchase.enabled
+                    ? m(
+                        'div',
+                        { className: 'ReferralProfile-channelBody' },
+                        m(
+                          'p',
+                          { className: 'ReferralProfile-channelHelp' },
+                          app.translator.trans('linkrobins-referral.forum.profile.purchase_channel_help')
+                        ),
+                        m(
+                          'div',
+                          { className: 'ReferralProfile-channelMeta' },
+                          m(
+                            'span',
+                            null,
+                            app.translator.trans('linkrobins-referral.forum.profile.purchase_summary', {
+                              price: purchase.price,
+                              currency: purchase.currencyName,
+                            })
+                          ),
+                          m(
+                            'span',
+                            null,
+                            app.translator.trans('linkrobins-referral.forum.profile.purchase_balance', {
+                              balance: purchase.balance,
+                              currency: purchase.currencyName,
+                            })
+                          ),
+                          purchase.dailyLimit > 0 &&
+                            m(
+                              'span',
+                              null,
+                              app.translator.trans('linkrobins-referral.forum.profile.daily_remaining', { remaining: purchase.remainingToday })
+                            ),
+                          m(
+                            'span',
+                            null,
+                            purchase.expiryHours > 0
+                              ? app.translator.trans('linkrobins-referral.forum.profile.purchase_expiry', { hours: purchase.expiryHours })
+                              : app.translator.trans('linkrobins-referral.forum.profile.purchase_no_expiry')
+                          )
+                        ),
+                        m(
+                          Button,
+                          {
+                            className: 'Button Button--default',
+                            icon: 'fas fa-coins',
+                            loading: this.action === 'purchase',
+                            disabled:
+                              this.action !== null ||
+                              !purchase.pointsAvailable ||
+                              purchase.price <= 0 ||
+                              purchase.balance < purchase.price ||
+                              (purchase.dailyLimit > 0 && purchase.remainingToday <= 0),
+                            onclick: () => this.runAction('purchase', '/referral/my-codes/purchase'),
+                          },
+                          app.translator.trans('linkrobins-referral.forum.profile.purchase')
+                        )
+                      )
+                    : m(
+                        'div',
+                        { className: 'ReferralProfile-channelBody' },
+                        m(
+                          'p',
+                          { className: 'ReferralProfile-channelHelp' },
+                          app.translator.trans('linkrobins-referral.forum.profile.purchase_channel_unavailable')
+                        )
+                      )
                 )
+              )
             ),
           isOwn &&
             m(

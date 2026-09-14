@@ -2,8 +2,8 @@ linkrobins-referral:
   forum:
     profile:
       tab: 邀请
-      invite_code_title: 邀请码
-      invite_code_help: 符合用户组条件的用户可以生成邀请码，也可以使用积分购买邀请码。每个邀请码只能使用一次。
+      invite_code_title: 邀请码中心
+      invite_code_help: 通过邀请码邀请新用户加入论坛。每个邀请码只能使用一次。
       copy: 复制
       copy_link: 复制邀请链接
       qr_button: 二维码
@@ -19,14 +19,25 @@ linkrobins-referral:
       no_expiry: 永不过期
       group_quota: "可用用户组邀请码：{current} / {max}"
       generate: 生成邀请码
+      access_title: 获取邀请码
+      group_channel_title: 用户组资格
+      group_channel_help: "符合管理员设置的用户组条件时，你可以手动生成邀请码。"
+      group_channel_expiry: "每个邀请码有效期：{hours} 小时"
+      group_channel_no_expiry: 每个邀请码永不过期
+      group_channel_unavailable: 当前没有可生成的邀请码资格。
       purchase_summary: "购买邀请码：{price} {currency}"
       daily_remaining: "今日还可购买 {remaining} 个"
       purchase: 使用积分购买
+      purchase_channel_title: 积分购买
+      purchase_channel_help: 使用积分购买邀请码，购买后立即获得。
+      purchase_channel_unavailable: 当前未开放积分购买邀请码。
+      purchase_balance: "当前积分：{balance} {currency}"
+      purchase_expiry: "每个邀请码有效期：{hours} 小时"
+      purchase_no_expiry: 每个邀请码永不过期
       my_codes: 我的邀请码
-      no_codes: 暂无邀请码
+      no_codes: 你还没有邀请码，请先在上方选择一种方式获取。
       total_referrals: 成功邀请人数
       no_referrals: 暂无成功邀请
-      not_eligible: 当前没有可生成的用户组邀请码资格。
       table_code: 邀请码
       table_source: 来源
       table_status: 状态
