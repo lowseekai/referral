@@ -111,7 +111,7 @@ var qrModal = require('./qrModal');
 
       extend(SignUpModal.prototype, 'fields', function (items) {
         var self = this;
-        var required = app.forum && app.forum.attribute('referralRequired');
+        var required = isEnabled(app.forum && app.forum.attribute('referralRequired'));
         if (self._inviteCode === undefined) self._inviteCode = getRefFromUrl();
 
         items.add(

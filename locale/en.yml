@@ -33,7 +33,7 @@ linkrobins-referral:
       table_validity: 有效期
       table_actions: 操作
     sign_up:
-      invite_code_label: 邀请码（选填）
+      invite_code_label: 邀请码
       invite_code_label_required: 邀请码（必填）
       invite_code_placeholder: 请输入邀请码
       get_invite_text: 还没有邀请码？
